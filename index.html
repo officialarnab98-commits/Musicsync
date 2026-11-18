@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>MusicSync — YouTube Music Together</title>
+  <title>Arnab MusicSync — YouTube Music Together</title>
   <link rel="manifest" href="/manifest.json" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -35,7 +36,7 @@
             <path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/>
           </svg>
         </div>
-        <span class="text-lg font-bold tracking-tight text-white">Music<span class="text-[#ff0033]">Sync</span></span>
+        <span class="text-lg font-bold tracking-tight text-white">Arnab <span class="text-[#ff0033]">MusicSync</span></span>
       </div>
 
       <!-- Search YouTube Music / Paste Link -->
@@ -102,6 +103,15 @@
         <div id="searchResultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
       </div>
 
+      <!-- Recommended for you (from your YouTube Music account) -->
+      <div id="recommendedSection" class="hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Recommended from your YouTube Music</h2>
+          <span class="text-xs text-neutral-400">Based on your playlists &amp; likes</span>
+        </div>
+        <div id="recommendedGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+
       <!-- Quick Picks -->
       <div class="space-y-3">
         <h2 class="text-lg font-bold text-white">Quick picks</h2>
@@ -158,24 +168,58 @@
           </div>
 
           <form id="joinRoomForm" class="space-y-2">
-            <label class="block text-xs text-neutral-400">Join or Switch Room Code</label>
+            <div class="flex items-center justify-between">
+              <label class="block text-xs text-neutral-400">Join or Switch Room Code</label>
+              <button id="newRoomBtn" type="button" class="text-xs font-semibold text-rose-400 hover:text-rose-300 transition">+ New Private Room</button>
+            </div>
             <div class="flex gap-2">
               <input id="roomInput" type="text" placeholder="e.g. YTM-8429" class="flex-1 rounded-xl bg-black/50 px-3 py-2 text-xs text-white mono border border-white/10 focus:outline-none" />
               <button type="submit" class="rounded-xl bg-white px-4 py-2 text-xs font-semibold text-black hover:bg-neutral-200 transition">Join</button>
             </div>
           </form>
 
-          <div class="rounded-xl bg-black/50 p-3 border border-white/10 space-y-2">
+          <!-- Live Emoji Reactions -->
+          <div class="space-y-2">
+            <label class="block text-xs text-neutral-400">Live Reactions</label>
+            <div class="flex items-center gap-2">
+              <button type="button" data-emoji="❤️" class="reaction-btn flex-1 rounded-xl bg-white/5 py-2 text-base hover:bg-white/15 transition">❤️</button>
+              <button type="button" data-emoji="🔥" class="reaction-btn flex-1 rounded-xl bg-white/5 py-2 text-base hover:bg-white/15 transition">🔥</button>
+              <button type="button" data-emoji="🎵" class="reaction-btn flex-1 rounded-xl bg-white/5 py-2 text-base hover:bg-white/15 transition">🎵</button>
+              <button type="button" data-emoji="🙌" class="reaction-btn flex-1 rounded-xl bg-white/5 py-2 text-base hover:bg-white/15 transition">🙌</button>
+            </div>
+          </div>
+
+          <div class="rounded-xl bg-black/50 p-3 border border-white/10 space-y-2.5">
             <p class="text-xs text-neutral-300">Invite your friend by sharing this link:</p>
             <div class="flex items-center justify-between gap-2">
               <code id="shareUrlLabel" class="text-[11px] mono text-sky-300 truncate"></code>
               <button id="copyShareUrlBtn" type="button" class="shrink-0 rounded-lg bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20">Copy Link</button>
             </div>
+            <a id="whatsappInviteBtn" href="#" target="_blank" rel="noopener noreferrer" class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-semibold text-black hover:bg-[#20bd5a] transition">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.03 2C6.5 2 2 6.5 2 12.03c0 1.77.46 3.5 1.34 5.02L2 22l5.09-1.33a9.96 9.96 0 004.94 1.3h.01c5.53 0 10.03-4.5 10.03-10.03C22.07 6.5 17.56 2 12.03 2zm5.84 14.23c-.25.7-1.44 1.34-2 1.42-.52.08-1.18.11-1.9-.12-.44-.14-1-.33-1.72-.64-3.03-1.31-5-4.37-5.15-4.57-.15-.2-1.23-1.64-1.23-3.13 0-1.49.78-2.22 1.06-2.52.28-.3.61-.38.81-.38h.58c.19 0 .44-.07.69.53.25.6.86 2.1.94 2.25.08.15.13.33.03.53-.1.2-.15.33-.3.5-.15.18-.32.4-.45.54-.15.15-.31.31-.13.61.18.3.8 1.32 1.72 2.14 1.18 1.05 2.18 1.38 2.48 1.53.3.15.48.13.66-.08.18-.2.76-.88.96-1.18.2-.3.4-.25.68-.15.28.1 1.77.83 2.07.98.3.15.5.23.58.35.08.13.08.73-.17 1.43z"/>
+              </svg>
+              <span>Invite via WhatsApp</span>
+            </a>
           </div>
+        </div>
+      </div>
+
+      <!-- Shared Up Next Queue -->
+      <div class="ytm-surface rounded-2xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-bold text-white">Shared Up Next Queue</h2>
+          <span id="queueCountBadge" class="rounded-full bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-neutral-300">0 songs</span>
+        </div>
+        <div id="sharedQueueList" class="space-y-2">
+          <p class="text-xs text-neutral-500">Queue is empty. Tap "+ Queue" on any song to add it for both phones.</p>
         </div>
       </div>
     </section>
   </main>
+
+  <!-- Floating Reaction Overlay -->
+  <div id="reactionOverlay" class="pointer-events-none fixed bottom-24 left-1/2 -translate-x-1/2 z-50 flex gap-3"></div>
 
   <!-- Persistent Bottom Player Bar -->
   <footer class="fixed bottom-0 inset-x-0 z-40 border-t border-white/10 bg-[#121212]/95 backdrop-blur-lg">
@@ -194,16 +238,20 @@
         </div>
       </div>
 
-      <div class="flex items-center gap-2 sm:gap-3">
-        <button id="miniPrevBtn" type="button" class="rounded-full p-2 text-neutral-300 hover:bg-white/10 hover:text-white transition">
+      <div class="flex items-center gap-1.5 sm:gap-3">
+        <button id="shuffleBtn" type="button" class="rounded-full p-2 text-neutral-400 hover:bg-white/10 hover:text-white transition" title="Shuffle">
+          <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24"><path d="M10.59 9.17L5.41 4 4 5.41l5.17 5.17 1.42-1.41zM14.5 4l2.04 2.04L4 18.59 5.41 20 17.96 7.46 20 9.5V4h-5.5zm.33 9.41l-1.41 1.41 3.13 3.13L14.5 20H20v-5.5l-2.04 2.04-3.13-3.13z"/></svg>
+        </button>
+        <button id="miniPrevBtn" type="button" class="rounded-full p-2 text-neutral-300 hover:bg-white/10 hover:text-white transition" title="Previous">
           <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
         </button>
-        <button id="miniPlayBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black hover:scale-105 transition shadow">
+        <button id="miniPlayBtn" type="button" class="flex h-10 w-10 items-center justify-center rounded-full bg-white text-black hover:scale-105 transition shadow" title="Play / Pause">
           <svg id="miniPlayIcon" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
         </button>
-        <button id="miniNextBtn" type="button" class="rounded-full p-2 text-neutral-300 hover:bg-white/10 hover:text-white transition">
+        <button id="miniNextBtn" type="button" class="rounded-full p-2 text-neutral-300 hover:bg-white/10 hover:text-white transition" title="Next">
           <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
         </button>
+        <button id="repeatBtn" type="button" class="rounded-full px-2 py-1 text-[11px] font-semibold text-neutral-400 hover:bg-white/10 hover:text-white transition" title="Repeat Mode">Off</button>
       </div>
 
       <div class="hidden sm:flex items-center justify-end gap-3 flex-1">
@@ -249,6 +297,10 @@
       guestUnlocked: initialRole === 'host',
       accessToken: null,
       playlists: [{ id: 'featured', title: 'Featured Tracks', tracks: DEFAULT_TRACKS }],
+      recommendedTracks: [],
+      sharedQueue: [],
+      shuffle: false,
+      repeat: 'off', // 'off' | 'all' | 'one'
       activePlaylistId: 'featured',
       room: {
         videoId: DEFAULT_TRACKS[0].videoId,
@@ -271,6 +323,34 @@
     function formatTime(sec) {
       const s = Math.max(0, Math.floor(sec || 0));
       return `${Math.floor(s / 60)}:${s % 60 < 10 ? '0' : ''}${s % 60}`;
+    }
+
+    // --- Screen Wake Lock (keeps iPhone screen awake while playing) ---
+    let wakeLockSentinel = null;
+    async function syncWakeLock(shouldKeepAwake) {
+      if (!('wakeLock' in navigator)) return;
+      try {
+        if (shouldKeepAwake && !wakeLockSentinel && document.visibilityState === 'visible') {
+          wakeLockSentinel = await navigator.wakeLock.request('screen');
+          wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+        } else if (!shouldKeepAwake && wakeLockSentinel) {
+          await wakeLockSentinel.release();
+          wakeLockSentinel = null;
+        }
+      } catch (_) {}
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && state.room.status === 'playing') {
+        syncWakeLock(true);
+      }
+    });
+
+    function generateRoomCode() {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = 'YTM-';
+      for (let i = 0; i < 4; i++) code += chars[Math.floor(Math.random() * chars.length)];
+      return code;
     }
 
     function showToast(msg) {
@@ -316,6 +396,11 @@
         } else if (msg.type === 'ROOM_STATE') {
           if (msg.serverNow) state.serverOffsetMs = msg.serverNow - Date.now();
           applyRoomState(msg.payload);
+        } else if (msg.type === 'QUEUE_UPDATE') {
+          state.sharedQueue = msg.queue || [];
+          renderSharedQueue();
+        } else if (msg.type === 'REACTION') {
+          spawnReaction(msg.emoji, msg.sender);
         }
       };
 
@@ -373,12 +458,16 @@
             if (state.player.unMute) state.player.unMute();
           },
           onStateChange: (e) => {
-            if (state.role === 'host' && (e.data === 1 || e.data === 2)) {
-              state.room.status = e.data === 1 ? 'playing' : 'paused';
-              state.room.positionSeconds = state.player.getCurrentTime();
-              state.room.updatedAt = Date.now() + state.serverOffsetMs;
-              sendRoomUpdate();
-              renderPlayerBar();
+            if (state.role === 'host') {
+              if (e.data === 1 || e.data === 2) {
+                state.room.status = e.data === 1 ? 'playing' : 'paused';
+                state.room.positionSeconds = state.player.getCurrentTime();
+                state.room.updatedAt = Date.now() + state.serverOffsetMs;
+                sendRoomUpdate();
+                renderPlayerBar();
+              } else if (e.data === 0) {
+                stepTrack(1);
+              }
             }
           }
         }
@@ -407,11 +496,14 @@
             return showToast('Google Sign-In failed');
           }
           state.accessToken = resp.access_token;
+          const expiresAt = Date.now() + ((Number(resp.expires_in) || 3600) - 60) * 1000;
+          try {
+            localStorage.setItem('musicsync_token', resp.access_token);
+            localStorage.setItem('musicsync_token_exp', String(expiresAt));
+          } catch (_) {}
+          setSignedInUI(true);
           el('authModal').classList.add('hidden');
           el('authModal').classList.remove('flex');
-          el('accountBtnLabel').textContent = 'YouTube Linked';
-          el('signInBanner').classList.add('hidden');
-          el('signOutRow').classList.remove('hidden');
           showToast('Signed in! Loading your playlists...');
           await fetchUserPlaylists();
         }
@@ -445,12 +537,51 @@
             }));
           if (tracks.length) loaded.push({ id: pl.id, title: pl.snippet.title, tracks });
         }
+        // Fetch Liked Music Videos
+        try {
+          const likesRes = await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults=12', {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+          });
+          const likesData = await likesRes.json();
+          const likedTracks = (likesData.items || []).map((it) => ({
+            videoId: it.id,
+            title: it.snippet.title,
+            artist: it.snippet.channelTitle || 'YouTube Music',
+            duration: 210,
+            thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.id}/mqdefault.jpg`
+          }));
+          if (likedTracks.length) {
+            loaded.unshift({ id: 'liked-music', title: 'Your Liked Songs', tracks: likedTracks });
+          }
+        } catch (_) {}
+
+        // Fetch Personalized Recommendations based on top liked/playlist artist
+        try {
+          const seed = loaded[0]?.tracks?.[0];
+          const q = seed ? `${seed.artist} music mix` : 'bollywood hits music';
+          const recRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&maxResults=9&q=${encodeURIComponent(q)}`, {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+          });
+          const recData = await recRes.json();
+          state.recommendedTracks = (recData.items || []).map((it) => ({
+            videoId: it.id.videoId,
+            title: it.snippet.title,
+            artist: it.snippet.channelTitle || 'YouTube Music',
+            duration: 210,
+            thumb: it.snippet.thumbnails?.medium?.url || ''
+          }));
+        } catch (_) {}
+
         if (loaded.length) {
           state.playlists = loaded;
           state.activePlaylistId = loaded[0].id;
+          try {
+            localStorage.setItem('musicsync_playlists', JSON.stringify(loaded));
+            localStorage.setItem('musicsync_recommended', JSON.stringify(state.recommendedTracks));
+          } catch (_) {}
           renderHome();
           renderLibrary();
-          setTab('library');
+          setTab('home');
         }
       } catch (err) {
         showToast('Failed to fetch YouTube playlists');
@@ -504,6 +635,88 @@
       sendRoomUpdate();
     }
 
+    function spawnReaction(emoji, sender) {
+      const box = el('reactionOverlay');
+      const pill = document.createElement('div');
+      pill.className = 'rounded-full bg-black/80 px-3 py-1.5 text-sm font-semibold text-white border border-white/15 shadow-lg transition-all duration-700';
+      pill.textContent = `${emoji} ${sender}`;
+      box.appendChild(pill);
+      setTimeout(() => {
+        pill.style.opacity = '0';
+        pill.style.transform = 'translateY(-24px)';
+      }, 900);
+      setTimeout(() => pill.remove(), 1600);
+    }
+
+    function addToQueue(track) {
+      if (state.ws && state.ws.readyState === 1) {
+        state.ws.send(JSON.stringify({ type: 'ADD_TO_QUEUE', track }));
+        showToast(`Added "${track.title}" to Up Next`);
+      } else {
+        state.sharedQueue.push(track);
+        renderSharedQueue();
+        showToast(`Added "${track.title}" to Up Next`);
+      }
+    }
+
+    function renderSharedQueue() {
+      const list = el('sharedQueueList');
+      el('queueCountBadge').textContent = `${state.sharedQueue.length} song${state.sharedQueue.length === 1 ? '' : 's'}`;
+      if (!state.sharedQueue.length) {
+        list.innerHTML = '<p class="text-xs text-neutral-500">Queue is empty. Tap "+ Queue" on any song to add it for both phones.</p>';
+        return;
+      }
+      list.innerHTML = '';
+      state.sharedQueue.forEach((t, idx) => {
+        const row = document.createElement('div');
+        row.className = 'ytm-card rounded-xl px-3 py-2 flex items-center justify-between gap-3';
+        row.innerHTML = `
+          <div class="flex items-center gap-3 min-w-0">
+            <span class="text-xs mono text-neutral-500">${idx + 1}</span>
+            <img src="${t.thumb}" alt="" class="h-9 w-9 rounded object-cover bg-neutral-800 shrink-0" />
+            <div class="min-w-0">
+              <p class="text-xs font-semibold text-white truncate">${t.title}</p>
+              <p class="text-[11px] text-neutral-400 truncate">${t.artist}</p>
+            </div>
+          </div>
+          <button type="button" class="remove-q-btn text-xs text-neutral-400 hover:text-rose-400 px-2 py-1">✕</button>
+        `;
+        row.querySelector('.remove-q-btn').addEventListener('click', () => {
+          if (state.ws && state.ws.readyState === 1) {
+            state.ws.send(JSON.stringify({ type: 'REMOVE_QUEUE', index: idx }));
+          }
+        });
+        list.appendChild(row);
+      });
+    }
+
+    function stepTrack(dir) {
+      if (state.role !== 'host') return showToast('Only the Host can skip songs');
+      if (dir > 0 && state.repeat === 'one') {
+        if (state.player && state.player.seekTo) state.player.seekTo(0, true);
+        state.room.positionSeconds = 0;
+        state.room.updatedAt = Date.now() + state.serverOffsetMs;
+        sendRoomUpdate();
+        return;
+      }
+      if (dir > 0 && state.sharedQueue.length > 0) {
+        const nextTrack = state.sharedQueue[0];
+        if (state.ws && state.ws.readyState === 1) state.ws.send(JSON.stringify({ type: 'POP_QUEUE' }));
+        playTrack(nextTrack);
+        return;
+      }
+      const activePl = state.playlists.find((p) => p.id === state.activePlaylistId) || state.playlists[0];
+      const queue = activePl && activePl.tracks.length ? activePl.tracks : DEFAULT_TRACKS;
+      if (state.shuffle && queue.length > 1) {
+        const randIdx = Math.floor(Math.random() * queue.length);
+        playTrack(queue[randIdx]);
+        return;
+      }
+      const idx = queue.findIndex((t) => t.videoId === state.room.videoId);
+      const nextIdx = idx === -1 ? 0 : (idx + dir + queue.length) % queue.length;
+      playTrack(queue[nextIdx]);
+    }
+
     function togglePlay() {
       if (state.role !== 'host') return showToast('Only the Host controls play/pause');
       if (!state.player) return;
@@ -532,21 +745,30 @@
     }
 
     function renderTrackCard(track) {
-      const card = document.createElement('button');
-      card.type = 'button';
-      card.className = 'ytm-card rounded-xl p-2.5 flex items-center gap-3 text-left w-full';
+      const card = document.createElement('div');
+      card.className = 'ytm-card rounded-xl p-2.5 flex items-center gap-3 w-full';
       card.innerHTML = `
-        <img src="${track.thumb}" alt="" class="h-12 w-12 shrink-0 rounded-lg object-cover bg-neutral-800" />
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-semibold text-white truncate">${track.title}</p>
-          <p class="text-xs text-neutral-400 truncate">${track.artist}</p>
-        </div>
+        <button type="button" class="play-card-btn flex items-center gap-3 text-left min-w-0 flex-1">
+          <img src="${track.thumb}" alt="" class="h-12 w-12 shrink-0 rounded-lg object-cover bg-neutral-800" />
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-semibold text-white truncate">${track.title}</p>
+            <p class="text-xs text-neutral-400 truncate">${track.artist}</p>
+          </div>
+        </button>
+        <button type="button" class="add-q-btn shrink-0 rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-medium text-neutral-200 hover:bg-white/20 transition">+ Queue</button>
       `;
-      card.addEventListener('click', () => playTrack(track));
+      card.querySelector('.play-card-btn').addEventListener('click', () => playTrack(track));
+      card.querySelector('.add-q-btn').addEventListener('click', () => addToQueue(track));
       return card;
     }
 
     function renderHome() {
+      if (state.recommendedTracks && state.recommendedTracks.length) {
+        el('recommendedSection').classList.remove('hidden');
+        const recGrid = el('recommendedGrid');
+        recGrid.innerHTML = '';
+        state.recommendedTracks.forEach((t) => recGrid.appendChild(renderTrackCard(t)));
+      }
       const grid = el('quickPicksGrid');
       grid.innerHTML = '';
       state.playlists.flatMap((p) => p.tracks).slice(0, 9).forEach((t) => grid.appendChild(renderTrackCard(t)));
@@ -590,6 +812,7 @@
       el('miniPlayIcon').innerHTML = state.room.status === 'playing'
         ? '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>'
         : '<path d="M8 5v14l11-7z"/>';
+      syncWakeLock(state.room.status === 'playing');
     }
 
     function updateRoleUI() {
@@ -601,9 +824,12 @@
       const url = `${location.origin}/?room=${state.roomId}`;
       el('shareUrlLabel').textContent = url;
       el('roomCodeLabel').textContent = state.roomId;
+      const waText = `Join my Arnab MusicSync room (${state.roomId}) to listen together in sync: ${url}`;
+      el('whatsappInviteBtn').href = `https://wa.me/?text=${encodeURIComponent(waText)}`;
     }
 
-    // Drift-check loop every 500ms
+    // Smooth two-tier drift-sync loop every 500ms + Host heartbeat every 2s
+    let heartbeatTick = 0;
     setInterval(() => {
       if (!state.player || typeof state.player.getCurrentTime !== 'function') return;
       const cur = state.player.getCurrentTime() || 0;
@@ -613,11 +839,27 @@
       el('miniCurrentTime').textContent = formatTime(cur);
       el('miniDuration').textContent = formatTime(dur);
 
+      heartbeatTick += 1;
+      if (state.role === 'host' && state.room.status === 'playing' && heartbeatTick % 4 === 0) {
+        state.room.positionSeconds = cur;
+        state.room.updatedAt = Date.now() + state.serverOffsetMs;
+        sendRoomUpdate();
+      }
+
       const expected = getExpectedTime();
-      const drift = Math.abs(cur - expected);
-      el('driftLabel').textContent = `${drift.toFixed(2)}s`;
-      if (state.role === 'guest' && state.guestUnlocked && state.room.status === 'playing' && drift > state.driftThreshold) {
-        state.player.seekTo(expected, true);
+      const signedDrift = expected - cur; // positive = guest is behind host
+      const absDrift = Math.abs(signedDrift);
+      el('driftLabel').textContent = `${absDrift.toFixed(2)}s`;
+
+      if (state.role === 'guest' && state.guestUnlocked && state.room.status === 'playing') {
+        if (absDrift > 1.5) {
+          if (state.player.setPlaybackRate) state.player.setPlaybackRate(1.0);
+          state.player.seekTo(expected, true);
+        } else if (absDrift > 0.25 && state.player.setPlaybackRate) {
+          state.player.setPlaybackRate(signedDrift > 0 ? 1.05 : 0.95);
+        } else if (state.player.setPlaybackRate) {
+          state.player.setPlaybackRate(1.0);
+        }
       }
     }, 500);
 
@@ -627,6 +869,37 @@
     el('tabRoomBtn').addEventListener('click', () => setTab('room'));
     el('roomBtn').addEventListener('click', () => setTab('room'));
     el('miniPlayBtn').addEventListener('click', togglePlay);
+    el('miniPrevBtn').addEventListener('click', () => stepTrack(-1));
+    el('miniNextBtn').addEventListener('click', () => stepTrack(1));
+
+    el('shuffleBtn').addEventListener('click', () => {
+      state.shuffle = !state.shuffle;
+      el('shuffleBtn').className = state.shuffle
+        ? 'rounded-full p-2 text-[#ff0033] bg-white/10 transition'
+        : 'rounded-full p-2 text-neutral-400 hover:bg-white/10 hover:text-white transition';
+      showToast(state.shuffle ? 'Shuffle On' : 'Shuffle Off');
+    });
+
+    el('repeatBtn').addEventListener('click', () => {
+      const order = ['off', 'all', 'one'];
+      state.repeat = order[(order.indexOf(state.repeat) + 1) % order.length];
+      el('repeatBtn').textContent = state.repeat === 'off' ? 'Off' : state.repeat === 'all' ? 'All' : 'One';
+      el('repeatBtn').className = state.repeat === 'off'
+        ? 'rounded-full px-2 py-1 text-[11px] font-semibold text-neutral-400 hover:bg-white/10 hover:text-white transition'
+        : 'rounded-full px-2 py-1 text-[11px] font-semibold text-[#ff0033] bg-white/10 transition';
+    });
+
+    document.querySelectorAll('.reaction-btn').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const emoji = btn.getAttribute('data-emoji');
+        const sender = state.role === 'host' ? 'Arnab' : 'Friend';
+        if (state.ws && state.ws.readyState === 1) {
+          state.ws.send(JSON.stringify({ type: 'REACTION', emoji, sender }));
+        } else {
+          spawnReaction(emoji, sender);
+        }
+      });
+    });
     el('miniScrubber').addEventListener('change', (e) => {
       if (state.role !== 'host' || !state.player) return;
       const sec = Number(e.target.value);
@@ -652,6 +925,15 @@
       showToast('Re-synced to host');
     });
 
+    el('newRoomBtn').addEventListener('click', () => {
+      const code = generateRoomCode();
+      state.roomId = code;
+      state.role = 'host';
+      updateRoleUI();
+      connectWebSocket();
+      showToast(`Created private room ${code}`);
+    });
+
     el('joinRoomForm').addEventListener('submit', (e) => {
       e.preventDefault();
       const code = el('roomInput').value.trim().toUpperCase();
@@ -674,18 +956,77 @@
     el('bannerSignInBtn').addEventListener('click', openAuth);
     el('closeAuthModalBtn').addEventListener('click', closeAuth);
     el('googleSignInBtn').addEventListener('click', startGoogleLogin);
+    function setSignedInUI(isSignedIn) {
+      el('accountBtnLabel').textContent = isSignedIn ? 'YouTube Linked' : 'Sign in';
+      el('signInBanner').classList.toggle('hidden', isSignedIn);
+      el('signOutRow').classList.toggle('hidden', !isSignedIn);
+    }
+
     el('signOutBtn').addEventListener('click', () => {
       state.accessToken = null;
-      el('accountBtnLabel').textContent = 'Sign in';
-      el('signInBanner').classList.remove('hidden');
-      el('signOutRow').classList.add('hidden');
+      state.playlists = [{ id: 'featured', title: 'Featured Tracks', tracks: DEFAULT_TRACKS }];
+      state.recommendedTracks = [];
+      state.activePlaylistId = 'featured';
+      el('recommendedSection').classList.add('hidden');
+      try {
+        localStorage.removeItem('musicsync_token');
+        localStorage.removeItem('musicsync_token_exp');
+        localStorage.removeItem('musicsync_playlists');
+        localStorage.removeItem('musicsync_recommended');
+      } catch (_) {}
+      setSignedInUI(false);
+      renderHome();
+      renderLibrary();
       closeAuth();
       showToast('Signed out');
     });
 
+    // Restore persisted session on app launch
     try {
       const savedId = localStorage.getItem('musicsync_client_id');
       if (savedId) el('oauthClientIdInput').value = savedId;
+
+      const savedToken = localStorage.getItem('musicsync_token');
+      const savedExp = Number(localStorage.getItem('musicsync_token_exp') || 0);
+      const savedPlaylists = localStorage.getItem('musicsync_playlists');
+      const savedRecs = localStorage.getItem('musicsync_recommended');
+
+      if (savedPlaylists) {
+        state.playlists = JSON.parse(savedPlaylists);
+        state.activePlaylistId = state.playlists[0]?.id || 'featured';
+        setSignedInUI(true);
+      }
+      if (savedRecs) {
+        state.recommendedTracks = JSON.parse(savedRecs);
+      }
+      if (savedToken && Date.now() < savedExp) {
+        state.accessToken = savedToken;
+        setSignedInUI(true);
+      } else if (savedId && savedPlaylists) {
+        // Attempt silent token refresh once GIS loads
+        window.addEventListener('load', () => {
+          setTimeout(() => {
+            if (window.google && google.accounts && google.accounts.oauth2) {
+              try {
+                const tc = google.accounts.oauth2.initTokenClient({
+                  client_id: savedId,
+                  scope: 'https://www.googleapis.com/auth/youtube.readonly',
+                  prompt: '',
+                  callback: (r) => {
+                    if (r && r.access_token) {
+                      state.accessToken = r.access_token;
+                      const exp = Date.now() + ((Number(r.expires_in) || 3600) - 60) * 1000;
+                      localStorage.setItem('musicsync_token', r.access_token);
+                      localStorage.setItem('musicsync_token_exp', String(exp));
+                    }
+                  }
+                });
+                tc.requestAccessToken({ prompt: '' });
+              } catch (_) {}
+            }
+          }, 1200);
+        });
+      }
     } catch (_) {}
 
     setTab(initialRole === 'guest' ? 'room' : 'home');

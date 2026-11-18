@@ -1,8 +1,15 @@
 {
-  "name": "MusicSync — YouTube Music Together",
-  "short_name": "MusicSync",
+  "name": "Arnab MusicSync \u2014 YouTube Music Together",
+  "short_name": "Arnab MusicSync",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#030303",
-  "theme_color": "#ff0033"
+  "theme_color": "#ff0033",
+  "icons": [
+    {
+      "src": "/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
 }

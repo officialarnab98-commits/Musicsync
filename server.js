@@ -15,6 +15,10 @@ app.get('/manifest.json', (_req, res) => {
   res.sendFile(path.join(__dirname, 'manifest.json'));
 });
 
+app.get('/icon-180.png', (_req, res) => {
+  res.sendFile(path.join(__dirname, 'icon-180.png'));
+});
+
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, rooms: rooms.size });
 });
@@ -25,6 +29,7 @@ function getOrCreateRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
       clients: new Set(),
+      queue: [],
       state: {
         videoId: 'jfKfPfyJRdk',
         title: 'Lofi Hip Hop Radio',
@@ -61,6 +66,7 @@ wss.on('connection', (ws, req) => {
     serverNow: Date.now(),
     payload: room.state
   }));
+  ws.send(JSON.stringify({ type: 'QUEUE_UPDATE', queue: room.queue }));
   broadcast(room, { type: 'PEER_COUNT', count: room.clients.size });
 
   ws.on('message', (raw) => {
@@ -77,6 +83,17 @@ wss.on('connection', (ws, req) => {
           serverNow: Date.now(),
           payload: room.state
         }, ws);
+      } else if (data.type === 'ADD_TO_QUEUE' && data.track) {
+        room.queue.push(data.track);
+        broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
+      } else if (data.type === 'POP_QUEUE') {
+        room.queue.shift();
+        broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
+      } else if (data.type === 'REMOVE_QUEUE' && typeof data.index === 'number') {
+        room.queue.splice(data.index, 1);
+        broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
+      } else if (data.type === 'REACTION' && data.emoji) {
+        broadcast(room, { type: 'REACTION', emoji: data.emoji, sender: data.sender || 'Friend' });
       }
     } catch (_) {}
   });
@@ -93,5 +110,5 @@ wss.on('connection', (ws, req) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`MusicSync running at http://localhost:${PORT}`);
+  console.log(`Arnab MusicSync running at http://localhost:${PORT}`);
 });
