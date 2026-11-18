@@ -10,7 +10,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/icon-180.png" />
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js" defer></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -504,7 +504,7 @@
         <button id="closeQrModalBtn" type="button" class="text-neutral-400 hover:text-white">✕</button>
       </div>
       <div class="flex justify-center rounded-xl bg-white p-3">
-        <canvas id="qrCanvas"></canvas>
+        <div id="qrBox" class="flex items-center justify-center w-[200px] h-[200px]"></div>
       </div>
       <p id="qrRoomText" class="text-xs mono text-neutral-300">YTM-8429</p>
     </div>
@@ -1743,9 +1743,24 @@
       el('qrRoomText').textContent = state.roomId;
       el('qrModal').classList.remove('hidden');
       el('qrModal').classList.add('flex');
-      if (window.QRCode && QRCode.toCanvas) {
-        QRCode.toCanvas(el('qrCanvas'), url, { width: 200, margin: 1 }, () => {});
+      const box = el('qrBox');
+      box.innerHTML = '';
+      if (typeof window.qrcode === 'function') {
+        try {
+          const qr = window.qrcode(0, 'M');
+          qr.addData(url);
+          qr.make();
+          box.innerHTML = qr.createSvgTag(5, 0);
+          const svg = box.querySelector('svg');
+          if (svg) { svg.setAttribute('width', '200'); svg.setAttribute('height', '200'); }
+          return;
+        } catch (_) {}
       }
+      const img = document.createElement('img');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(url)}`;
+      img.alt = 'Room QR Code';
+      img.className = 'w-[200px] h-[200px]';
+      box.appendChild(img);
     });
     el('pipGuideBtn').addEventListener('click', () => {
       el('pipModal').classList.remove('hidden');
