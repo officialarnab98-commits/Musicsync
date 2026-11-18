@@ -125,6 +125,15 @@
         <div id="searchResultsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
       </div>
 
+      <!-- Suggested YouTube Music Playlists -->
+      <div id="suggestedPlaylistsSection" class="hidden space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-lg font-bold text-white">Suggested Music Playlists</h2>
+          <span class="text-xs text-neutral-400">From YouTube Music</span>
+        </div>
+        <div id="suggestedPlaylistsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+      </div>
+
       <!-- Recommended for you (from your YouTube Music account) -->
       <div id="recommendedSection" class="hidden space-y-3">
         <div class="flex items-center justify-between">
@@ -244,6 +253,14 @@
               <span class="block text-[11px] text-neutral-400">Block new people from joining once your friend is in</span>
             </div>
             <input id="lockRoomToggle" type="checkbox" class="h-4 w-4 accent-[#ff0033]" />
+          </label>
+
+          <label class="flex items-center justify-between rounded-xl bg-black/40 px-3 py-2.5 border border-white/10 cursor-pointer select-none">
+            <div>
+              <span class="block text-xs font-semibold text-white">Auto-Queue Related Songs</span>
+              <span class="block text-[11px] text-neutral-400">Automatically add similar music to Up Next when playing</span>
+            </div>
+            <input id="autoRelatedToggle" type="checkbox" checked class="h-4 w-4 accent-[#ff0033]" />
           </label>
 
           <div class="space-y-2">
@@ -547,6 +564,7 @@
       accessToken: null,
       playlists: [{ id: 'featured', title: 'Featured Tracks', tracks: DEFAULT_TRACKS }],
       recommendedTracks: [],
+      suggestedPlaylists: [],
       sharedQueue: [],
       shuffle: false,
       repeat: 'off', // 'off' | 'all' | 'one'
@@ -576,7 +594,8 @@
       serverOffsetMs: 0,
       driftThreshold: 1.0,
       targetVolume: 100,
-      btOffsetMs: 0
+      btOffsetMs: 0,
+      autoQueueRelated: true
     };
 
     const el = (id) => document.getElementById(id);
@@ -866,6 +885,16 @@
       tokenClient.requestAccessToken();
     }
 
+    function isMusicVideoItem(it) {
+      if (!it || !it.snippet) return false;
+      if (it.snippet.categoryId !== '10') return false;
+      const topics = it.topicDetails && it.topicDetails.topicCategories;
+      if (Array.isArray(topics) && topics.length > 0) {
+        return topics.some((t) => t.toLowerCase().includes('music'));
+      }
+      return true;
+    }
+
     async function fetchUserPlaylists() {
       if (!state.accessToken) return;
       try {
@@ -882,40 +911,69 @@
         if (!data.items || !data.items.length) return showToast('No playlists found on this account');
 
         const loaded = [];
-        for (const pl of data.items.slice(0, 6)) {
+        for (const pl of data.items.slice(0, 10)) {
           const itemsRes = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${pl.id}&maxResults=25`, {
             headers: { Authorization: `Bearer ${state.accessToken}` }
           });
           const itemsData = await itemsRes.json();
-          const tracks = (itemsData.items || [])
-            .filter((it) => it.contentDetails && it.contentDetails.videoId)
+          const rawIds = (itemsData.items || [])
+            .map((it) => it.contentDetails && it.contentDetails.videoId)
+            .filter(Boolean);
+          if (!rawIds.length) continue;
+
+          const vRes = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,topicDetails&id=${rawIds.slice(0, 25).join(',')}`, {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+          });
+          const vData = await vRes.json();
+          const tracks = (vData.items || [])
+            .filter(isMusicVideoItem)
             .map((it) => ({
-              videoId: it.contentDetails.videoId,
+              videoId: it.id,
               title: it.snippet.title,
-              artist: it.snippet.videoOwnerChannelTitle || 'YouTube Music',
+              artist: it.snippet.channelTitle || 'YouTube Music',
               duration: 210,
-              thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.contentDetails.videoId}/mqdefault.jpg`
+              thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.id}/mqdefault.jpg`
             }));
           if (tracks.length) loaded.push({ id: pl.id, title: pl.snippet.title, tracks });
         }
-        // Fetch Liked Music Videos
+        // Fetch Liked Music Videos (strictly Music category + Music topic)
         try {
-          const likesRes = await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet&myRating=like&maxResults=30', {
+          const likesRes = await fetch('https://www.googleapis.com/youtube/v3/videos?part=snippet,topicDetails&myRating=like&maxResults=40', {
             headers: { Authorization: `Bearer ${state.accessToken}` }
           });
           const likesData = await likesRes.json();
           const likedTracks = (likesData.items || [])
-            .filter((it) => it.snippet && it.snippet.categoryId === '10')
-            .slice(0, 15)
+            .filter(isMusicVideoItem)
+            .slice(0, 20)
             .map((it) => ({
-            videoId: it.id,
-            title: it.snippet.title,
-            artist: it.snippet.channelTitle || 'YouTube Music',
-            duration: 210,
-            thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.id}/mqdefault.jpg`
-          }));
+              videoId: it.id,
+              title: it.snippet.title,
+              artist: it.snippet.channelTitle || 'YouTube Music',
+              duration: 210,
+              thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.id}/mqdefault.jpg`
+            }));
           if (likedTracks.length) {
             loaded.unshift({ id: 'liked-music', title: 'Your Liked Songs', tracks: likedTracks });
+          }
+        } catch (_) {}
+
+        // Fetch Suggested Music Playlists from YouTube
+        try {
+          const seedArtist = loaded[0]?.tracks?.[0]?.artist || 'Bollywood';
+          const plSearchRes = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=playlist&maxResults=6&q=${encodeURIComponent(seedArtist + ' music playlist')}`, {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+          });
+          if (plSearchRes.ok) {
+            const plSearchData = await plSearchRes.json();
+            state.suggestedPlaylists = (plSearchData.items || [])
+              .filter((it) => it.id && it.id.playlistId)
+              .map((it) => ({
+                id: it.id.playlistId,
+                title: it.snippet.title,
+                channel: it.snippet.channelTitle || 'YouTube Music',
+                thumb: it.snippet.thumbnails?.medium?.url || ''
+              }));
+            try { localStorage.setItem('musicsync_sug_pl_v2', JSON.stringify(state.suggestedPlaylists)); } catch (_) {}
           }
         } catch (_) {}
 
@@ -940,8 +998,8 @@
           state.playlists = loaded;
           state.activePlaylistId = loaded[0].id;
           try {
-            localStorage.setItem('musicsync_playlists', JSON.stringify(loaded));
-            localStorage.setItem('musicsync_recommended', JSON.stringify(state.recommendedTracks));
+            localStorage.setItem('musicsync_playlists_v2', JSON.stringify(loaded));
+            localStorage.setItem('musicsync_recommended_v2', JSON.stringify(state.recommendedTracks));
           } catch (_) {}
           renderHome();
           renderLibrary();
@@ -1035,6 +1093,57 @@
       }
       renderPlayerBar();
       sendRoomUpdate();
+      if (state.autoQueueRelated && state.sharedQueue.length < 2) {
+        queueRelatedTracks(track);
+      }
+    }
+
+    async function queueRelatedTracks(track) {
+      if (!track || !track.videoId) return;
+      if (state.accessToken) {
+        try {
+          const cleanArtist = (track.artist || '').replace(/ - Topic$/i, '').trim();
+          const q = cleanArtist && cleanArtist !== 'YouTube Music' ? `${cleanArtist} songs` : track.title;
+          const res = await fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&topicId=/m/04rlf&maxResults=6&q=${encodeURIComponent(q)}`, {
+            headers: { Authorization: `Bearer ${state.accessToken}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const related = (data.items || [])
+              .filter((it) => it.id && it.id.videoId && it.id.videoId !== track.videoId)
+              .slice(0, 4)
+              .map((it) => ({
+                videoId: it.id.videoId,
+                title: it.snippet.title,
+                artist: it.snippet.channelTitle || 'YouTube Music',
+                duration: 210,
+                thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.id.videoId}/mqdefault.jpg`
+              }));
+            if (related.length) {
+              related.forEach((t) => {
+                if (state.ws && state.ws.readyState === 1) {
+                  state.ws.send(JSON.stringify({ type: 'ADD_TO_QUEUE', track: t }));
+                } else {
+                  state.sharedQueue.push(t);
+                }
+              });
+              if (!state.ws || state.ws.readyState !== 1) renderSharedQueue();
+              return;
+            }
+          }
+        } catch (_) {}
+      }
+      // Fallback: queue other tracks from current playlist
+      const activePl = state.playlists.find((p) => p.id === state.activePlaylistId) || state.playlists[0];
+      const fallback = (activePl?.tracks || DEFAULT_TRACKS).filter((t) => t.videoId !== track.videoId).slice(0, 3);
+      fallback.forEach((t) => {
+        if (state.ws && state.ws.readyState === 1) {
+          state.ws.send(JSON.stringify({ type: 'ADD_TO_QUEUE', track: t }));
+        } else {
+          state.sharedQueue.push(t);
+        }
+      });
+      if (!state.ws || state.ws.readyState !== 1) renderSharedQueue();
     }
 
     function spawnReaction(emoji, sender) {
@@ -1272,7 +1381,57 @@
       state.recentTracks.forEach((t) => grid.appendChild(renderTrackCard(t)));
     }
 
+    async function openSuggestedPlaylist(pl) {
+      if (!state.accessToken) return showToast('Sign in with Google to load playlist');
+      showToast(`Loading "${pl.title}"...`);
+      try {
+        const res = await fetch(`https://www.googleapis.com/youtube/v3/playlistItems?part=snippet,contentDetails&playlistId=${pl.id}&maxResults=20`, {
+          headers: { Authorization: `Bearer ${state.accessToken}` }
+        });
+        const data = await res.json();
+        const tracks = (data.items || [])
+          .filter((it) => it.contentDetails && it.contentDetails.videoId)
+          .map((it) => ({
+            videoId: it.contentDetails.videoId,
+            title: it.snippet.title,
+            artist: it.snippet.videoOwnerChannelTitle || pl.channel,
+            duration: 210,
+            thumb: it.snippet.thumbnails?.medium?.url || `https://i.ytimg.com/vi/${it.contentDetails.videoId}/mqdefault.jpg`
+          }));
+        if (!tracks.length) return showToast('No playable tracks in this playlist');
+        if (!state.playlists.some((p) => p.id === pl.id)) {
+          state.playlists.push({ id: pl.id, title: pl.title, tracks });
+        }
+        state.activePlaylistId = pl.id;
+        renderLibrary();
+        setTab('library');
+        playAllTracks(tracks);
+      } catch (_) {
+        showToast('Could not load playlist');
+      }
+    }
+
     function renderHome() {
+      if (state.suggestedPlaylists && state.suggestedPlaylists.length) {
+        el('suggestedPlaylistsSection').classList.remove('hidden');
+        const spGrid = el('suggestedPlaylistsGrid');
+        spGrid.innerHTML = '';
+        state.suggestedPlaylists.forEach((pl) => {
+          const card = document.createElement('button');
+          card.type = 'button';
+          card.className = 'ytm-card rounded-xl p-2.5 flex items-center gap-3 text-left w-full';
+          card.innerHTML = `
+            <img src="${pl.thumb}" alt="" onerror="this.style.opacity=0" class="h-12 w-12 shrink-0 rounded-lg object-cover bg-neutral-800" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-semibold text-white truncate">${pl.title}</p>
+              <p class="text-xs text-neutral-400 truncate">${pl.channel} · Playlist</p>
+            </div>
+            <span class="shrink-0 rounded-full bg-[#ff0033] px-2.5 py-1 text-[11px] font-semibold text-white">▶</span>
+          `;
+          card.addEventListener('click', () => openSuggestedPlaylist(pl));
+          spGrid.appendChild(card);
+        });
+      }
       if (state.recommendedTracks && state.recommendedTracks.length) {
         el('recommendedSection').classList.remove('hidden');
         const recGrid = el('recommendedGrid');
@@ -1547,6 +1706,11 @@
       el('accountBtnLabel').textContent = isSignedIn ? 'Linked' : 'Sign in';
       el('signInBanner').classList.toggle('hidden', isSignedIn);
       el('signOutRow').classList.toggle('hidden', !isSignedIn);
+      if (el('librarySubtitle')) {
+        el('librarySubtitle').textContent = isSignedIn
+          ? 'Your synced YouTube Music playlists & liked songs'
+          : 'Sign in with Google to load your personal playlists.';
+      }
     }
 
     el('signOutBtn').addEventListener('click', () => {
@@ -1558,8 +1722,8 @@
       try {
         localStorage.removeItem('musicsync_token');
         localStorage.removeItem('musicsync_token_exp');
-        localStorage.removeItem('musicsync_playlists');
-        localStorage.removeItem('musicsync_recommended');
+        localStorage.removeItem('musicsync_playlists_v2');
+        localStorage.removeItem('musicsync_recommended_v2');
       } catch (_) {}
       setSignedInUI(false);
       renderHome();
@@ -1575,14 +1739,16 @@
 
       const savedToken = localStorage.getItem('musicsync_token');
       const savedExp = Number(localStorage.getItem('musicsync_token_exp') || 0);
-      const savedPlaylists = localStorage.getItem('musicsync_playlists');
-      const savedRecs = localStorage.getItem('musicsync_recommended');
+      const savedPlaylists = localStorage.getItem('musicsync_playlists_v2');
+      const savedRecs = localStorage.getItem('musicsync_recommended_v2');
 
       if (savedPlaylists) {
         state.playlists = JSON.parse(savedPlaylists);
         state.activePlaylistId = state.playlists[0]?.id || 'featured';
         setSignedInUI(true);
       }
+      const savedSugPl = localStorage.getItem('musicsync_sug_pl_v2');
+      if (savedSugPl) { state.suggestedPlaylists = JSON.parse(savedSugPl); }
       if (savedRecs) {
         state.recommendedTracks = JSON.parse(savedRecs);
       }
@@ -1855,6 +2021,11 @@
         sendRoomUpdate();
         showToast(`Speed set to ${rate}x`);
       });
+    });
+
+    el('autoRelatedToggle').addEventListener('change', (e) => {
+      state.autoQueueRelated = e.target.checked;
+      showToast(state.autoQueueRelated ? 'Auto-Queue Related Songs On' : 'Auto-Queue Related Songs Off');
     });
 
     el('coDjToggle').addEventListener('change', (e) => {
