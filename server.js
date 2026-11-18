@@ -70,7 +70,7 @@ function broadcast(room, payload, excludeWs = null) {
 
 wss.on('connection', (ws, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const roomId = (url.searchParams.get('room') || 'YTM-8429').toUpperCase();
+  const roomId = (url.searchParams.get('room') || 'YTM-8429').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20) || 'YTM-8429';
   const room = getOrCreateRoom(roomId);
 
   if (room.state.locked && room.clients.size >= 2) {
@@ -99,10 +99,11 @@ wss.on('connection', (ws, req) => {
       const data = JSON.parse(raw.toString());
       if (data.type === 'UPDATE_STATE' && data.payload) {
         const trackChanged = data.payload.videoId && data.payload.videoId !== room.state.videoId;
+        const nextPlayed = (room.state.tracksPlayed || 1) + (trackChanged ? 1 : 0);
         room.state = {
           ...room.state,
           ...data.payload,
-          tracksPlayed: (room.state.tracksPlayed || 1) + (trackChanged ? 1 : 0),
+          tracksPlayed: nextPlayed,
           updatedAt: Date.now()
         };
         broadcast(room, {
@@ -110,7 +111,7 @@ wss.on('connection', (ws, req) => {
           serverNow: Date.now(),
           payload: room.state
         }, ws);
-      } else if (data.type === 'ADD_TO_QUEUE' && data.track) {
+      } else if (data.type === 'ADD_TO_QUEUE' && data.track && data.track.videoId) {
         const last = room.queue[room.queue.length - 1];
         if (!last || last.videoId !== data.track.videoId) {
           room.queue.push(data.track);
@@ -147,6 +148,8 @@ wss.on('connection', (ws, req) => {
       }
     } catch (_) {}
   });
+
+  ws.on('error', () => {});
 
   ws.on('close', () => {
     room.clients.delete(ws);
