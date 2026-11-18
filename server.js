@@ -90,6 +90,18 @@ wss.on('connection', (ws, req) => {
   ws.clientKey = clientKey || ws.peerId;
   ws.peerName = url.searchParams.get('name') || 'Listener';
   ws.peerRole = url.searchParams.get('role') || 'guest';
+  ws.isAlive = true;
+  ws.on('pong', () => { ws.isAlive = true; });
+
+  // Replace any stale/zombie connection from the same device (clientKey)
+  if (clientKey) {
+    for (const old of room.clients) {
+      if (old.clientKey === clientKey) {
+        room.clients.delete(old);
+        try { old.terminate(); } catch (_) {}
+      }
+    }
+  }
   room.clients.add(ws);
 
   ws.send(JSON.stringify({
@@ -181,6 +193,21 @@ wss.on('connection', (ws, req) => {
     }
   });
 });
+
+setInterval(() => {
+  for (const room of rooms.values()) {
+    for (const ws of room.clients) {
+      if (ws.isAlive === false) {
+        room.clients.delete(ws);
+        try { ws.terminate(); } catch (_) {}
+        broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
+      } else {
+        ws.isAlive = false;
+        try { ws.ping(); } catch (_) {}
+      }
+    }
+  }
+}, 30000);
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
