@@ -33,7 +33,7 @@
 </head>
 <body class="min-h-screen pb-32 overflow-x-hidden antialiased selection:bg-red-500/30">
   <!-- Top App Bar -->
-  <header class="sticky top-0 z-30 border-b border-white/10 bg-[#030303]/95 backdrop-blur-md">
+  <header class="sticky top-0 z-30 border-b border-white/10 bg-[#030303]/95 backdrop-blur-md pt-[env(safe-area-inset-top)]">
     <div class="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3">
       <div class="flex items-center gap-2.5 shrink-0">
         <div class="flex h-8 w-8 items-center justify-center rounded-full bg-[#ff0033] shadow-lg shadow-red-600/30">
@@ -210,7 +210,6 @@
             <div class="flex flex-wrap items-center gap-1.5">
               <button id="requestSkipBtn" type="button" class="hidden rounded-full bg-amber-500/20 px-3 py-1 text-xs font-medium text-amber-300 border border-amber-500/30 hover:bg-amber-500/30 transition">Request Skip</button>
               <button id="fixAudioBtn" type="button" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition">Fix Audio</button>
-              <button id="pipGuideBtn" type="button" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition">Mini Window (PiP)</button>
               <button id="forceResyncBtn" type="button" class="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white hover:bg-white/20 transition">Re-sync to Host</button>
             </div>
           </div>
@@ -314,7 +313,7 @@
             <div id="peersListRow" class="flex flex-wrap gap-1.5 pt-1"></div>
             <div class="flex gap-2">
               <button id="showQrBtn" type="button" class="shrink-0 rounded-xl bg-white/10 px-3 py-2 text-xs font-semibold text-white hover:bg-white/20 transition">QR Code</button>
-              <button id="nfcInviteBtn" type="button" class="shrink-0 rounded-xl bg-indigo-500/20 px-3 py-2 text-xs font-semibold text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition">NFC / Share</button>
+              <button id="airdropInviteBtn" type="button" class="shrink-0 rounded-xl bg-sky-500/20 px-3 py-2 text-xs font-semibold text-sky-300 border border-sky-500/30 hover:bg-sky-500/30 transition">AirDrop</button>
               <a id="whatsappInviteBtn" href="#" target="_blank" rel="noopener noreferrer" class="flex w-full items-center justify-center gap-2 rounded-xl bg-[#25D366] px-4 py-2 text-xs font-semibold text-black hover:bg-[#20bd5a] transition">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.03 2C6.5 2 2 6.5 2 12.03c0 1.77.46 3.5 1.34 5.02L2 22l5.09-1.33a9.96 9.96 0 004.94 1.3h.01c5.53 0 10.03-4.5 10.03-10.03C22.07 6.5 17.56 2 12.03 2zm5.84 14.23c-.25.7-1.44 1.34-2 1.42-.52.08-1.18.11-1.9-.12-.44-.14-1-.33-1.72-.64-3.03-1.31-5-4.37-5.15-4.57-.15-.2-1.23-1.64-1.23-3.13 0-1.49.78-2.22 1.06-2.52.28-.3.61-.38.81-.38h.58c.19 0 .44-.07.69.53.25.6.86 2.1.94 2.25.08.15.13.33.03.53-.1.2-.15.33-.3.5-.15.18-.32.4-.45.54-.15.15-.31.31-.13.61.18.3.8 1.32 1.72 2.14 1.18 1.05 2.18 1.38 2.48 1.53.3.15.48.13.66-.08.18-.2.76-.88.96-1.18.2-.3.4-.25.68-.15.28.1 1.77.83 2.07.98.3.15.5.23.58.35.08.13.08.73-.17 1.43z"/>
@@ -417,7 +416,7 @@
   </div>
 
     <!-- Full-Screen Now Playing View -->
-  <div id="fullPlayerModal" class="fixed inset-0 z-50 hidden flex-col justify-between bg-[#08080a] p-6 overflow-y-auto">
+  <div id="fullPlayerModal" class="fixed inset-0 z-50 hidden flex-col justify-between bg-[#08080a] px-6 pb-6 pt-[calc(1.5rem+env(safe-area-inset-top))] overflow-y-auto">
     <div id="fullPlayerBackdrop" class="pointer-events-none absolute inset-0 opacity-25 blur-3xl bg-gradient-to-br from-[#ff0033] via-purple-900 to-black"></div>
     <div class="relative z-10 mx-auto w-full max-w-md flex flex-col justify-between min-h-full gap-6">
       <div class="flex items-center justify-between">
@@ -527,23 +526,7 @@
     </div>
   </div>
 
-    <!-- Mini Window (Picture-in-Picture) Guide Modal -->
-  <div id="pipModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-    <div class="ytm-surface w-full max-w-sm rounded-2xl p-5 space-y-3 shadow-2xl">
-      <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold text-white">Mini Window (Picture-in-Picture)</h3>
-        <button id="closePipModalBtn" type="button" class="text-neutral-400 hover:text-white">✕</button>
-      </div>
-      <ol class="list-decimal list-inside space-y-2 text-xs text-neutral-300 leading-relaxed">
-        <li>Go to the <strong class="text-white">Listen Together</strong> tab and make sure your song is playing.</li>
-        <li>Tap the <strong class="text-white">Fullscreen (⛶)</strong> icon in the bottom-right corner of the YouTube video.</li>
-        <li>While playing in fullscreen, <strong class="text-white">swipe up from the bottom</strong> of your iPhone 14 to switch to another app—iOS will shrink it into a floating mini window.</li>
-      </ol>
-      <p class="text-[11px] text-neutral-400">Note: On iPhone, YouTube only allows PiP for music tracks if you're signed into YouTube in Safari with YouTube Premium (or on non-restricted videos).</p>
-    </div>
-  </div>
-
-  <div id="toast" class="pointer-events-none fixed bottom-24 right-5 z-50 translate-y-4 opacity-0 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-xl transition-all duration-200"></div>
+    <div id="toast" class="pointer-events-none fixed bottom-24 right-5 z-50 translate-y-4 opacity-0 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-xl transition-all duration-200"></div>
 
   <script>
     const DEFAULT_TRACKS = [
@@ -667,7 +650,12 @@
         try { state.ws.close(); } catch (_) {}
       }
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${proto}//${location.host}?room=${encodeURIComponent(state.roomId)}&name=${encodeURIComponent(getSenderName())}&role=${state.role}`);
+      let cid = '';
+      try {
+        cid = localStorage.getItem('musicsync_cid') || '';
+        if (!cid) { cid = 'u_' + Math.random().toString(36).slice(2, 10); localStorage.setItem('musicsync_cid', cid); }
+      } catch (_) {}
+      const ws = new WebSocket(`${proto}//${location.host}?room=${encodeURIComponent(state.roomId)}&name=${encodeURIComponent(getSenderName())}&role=${state.role}&cid=${encodeURIComponent(cid)}`);
       state.ws = ws;
 
       ws.onopen = () => {
@@ -679,7 +667,12 @@
 
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
-        if (msg.type === 'ROOM_LOCKED') {
+        if (msg.type === 'BLOCKED') {
+          ws._intentionalClose = true;
+          showToast('You were blocked from this room by the Host');
+          el('syncStatusBadge').textContent = 'Blocked';
+          el('syncStatusBadge').className = 'rounded-full bg-rose-500/20 px-2.5 py-1 text-[11px] font-medium text-rose-300';
+        } else if (msg.type === 'ROOM_LOCKED') {
           showToast('This room is locked by the Host');
         } else if (msg.type === 'PONG' && msg.ts) {
           const rtt = Math.max(1, Date.now() - msg.ts);
@@ -1110,7 +1103,13 @@
           if (res.ok) {
             const data = await res.json();
             const related = (data.items || [])
-              .filter((it) => it.id && it.id.videoId && it.id.videoId !== track.videoId)
+              .filter((it) => {
+                const vid = it.id && it.id.videoId;
+                if (!vid || vid === track.videoId) return false;
+                if (state.sharedQueue.some((q) => q.videoId === vid)) return false;
+                if (state.recentTracks.some((r) => r.videoId === vid)) return false;
+                return true;
+              })
               .slice(0, 4)
               .map((it) => ({
                 videoId: it.id.videoId,
@@ -1135,7 +1134,11 @@
       }
       // Fallback: queue other tracks from current playlist
       const activePl = state.playlists.find((p) => p.id === state.activePlaylistId) || state.playlists[0];
-      const fallback = (activePl?.tracks || DEFAULT_TRACKS).filter((t) => t.videoId !== track.videoId).slice(0, 3);
+      const fallback = (activePl?.tracks || DEFAULT_TRACKS).filter((t) =>
+        t.videoId !== track.videoId &&
+        !state.sharedQueue.some((q) => q.videoId === t.videoId) &&
+        !state.recentTracks.some((r) => r.videoId === t.videoId)
+      ).slice(0, 3);
       fallback.forEach((t) => {
         if (state.ws && state.ws.readyState === 1) {
           state.ws.send(JSON.stringify({ type: 'ADD_TO_QUEUE', track: t }));
@@ -1886,9 +1889,24 @@
       peers.forEach((p) => {
         const chip = document.createElement('span');
         chip.className = p.role === 'host'
-          ? 'rounded-full bg-rose-500/15 px-2.5 py-0.5 text-[11px] font-medium text-rose-300 border border-rose-500/30'
-          : 'rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-medium text-sky-300 border border-sky-500/30';
-        chip.textContent = `${p.name} (${p.role === 'host' ? 'Host' : 'Friend'})`;
+          ? 'inline-flex items-center gap-1.5 rounded-full bg-rose-500/15 px-2.5 py-1 text-[11px] font-medium text-rose-300 border border-rose-500/30'
+          : 'inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-2.5 py-1 text-[11px] font-medium text-sky-300 border border-sky-500/30';
+        const label = document.createElement('span');
+        label.textContent = `${p.name} (${p.role === 'host' ? 'Host' : 'Friend'})`;
+        chip.appendChild(label);
+        if (state.role === 'host' && p.role !== 'host' && p.peerId) {
+          const blk = document.createElement('button');
+          blk.type = 'button';
+          blk.className = 'rounded-full bg-rose-500/30 px-1.5 py-0.5 text-[10px] font-semibold text-rose-200 hover:bg-rose-500 hover:text-white transition';
+          blk.textContent = 'Block';
+          blk.addEventListener('click', () => {
+            if (state.ws && state.ws.readyState === 1) {
+              state.ws.send(JSON.stringify({ type: 'BLOCK_PEER', peerId: p.peerId }));
+              showToast(`Blocked ${p.name}`);
+            }
+          });
+          chip.appendChild(blk);
+        }
         box.appendChild(chip);
       });
     }
@@ -1928,17 +1946,6 @@
       img.className = 'w-[200px] h-[200px]';
       box.appendChild(img);
     });
-    el('pipGuideBtn').addEventListener('click', () => {
-      el('pipModal').classList.remove('hidden');
-      el('pipModal').classList.add('flex');
-    });
-    el('closePipModalBtn').addEventListener('click', () => {
-      el('pipModal').classList.add('hidden');
-      el('pipModal').classList.remove('flex');
-    });
-    el('pipModal').addEventListener('click', (e) => {
-      if (e.target === el('pipModal')) { el('pipModal').classList.add('hidden'); el('pipModal').classList.remove('flex'); }
-    });
     el('qrModal').addEventListener('click', (e) => {
       if (e.target === el('qrModal')) { el('qrModal').classList.add('hidden'); el('qrModal').classList.remove('flex'); }
     });
@@ -1951,19 +1958,8 @@
       el('qrModal').classList.remove('flex');
     });
 
-    el('nfcInviteBtn').addEventListener('click', async () => {
+    el('airdropInviteBtn').addEventListener('click', async () => {
       const url = `${location.origin}/?room=${state.roomId}`;
-      if ('NDEFReader' in window) {
-        try {
-          const ndef = new NDEFReader();
-          showToast('Hold an NFC tag near your phone...');
-          await ndef.write({ records: [{ recordType: 'url', data: url }] });
-          showToast('Room link written to NFC tag!');
-          return;
-        } catch (_) {
-          showToast('NFC write cancelled or unavailable');
-        }
-      }
       if (navigator.share) {
         try {
           await navigator.share({
@@ -1974,7 +1970,8 @@
           return;
         } catch (_) {}
       }
-      showToast('iPhone Safari does not support Web NFC — use AirDrop or QR Code');
+      try { await navigator.clipboard.writeText(url); } catch (_) {}
+      showToast('Invite link copied — open AirDrop or Share to send');
     });
 
     document.querySelectorAll('.audio-mode-btn').forEach((btn) => {

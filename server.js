@@ -28,7 +28,7 @@ const rooms = new Map();
 function getPeersList(room) {
   const list = [];
   for (const c of room.clients) {
-    list.push({ name: c.peerName || 'Guest', role: c.peerRole || 'guest' });
+    list.push({ peerId: c.peerId, name: c.peerName || 'Guest', role: c.peerRole || 'guest' });
   }
   return list;
 }
@@ -37,6 +37,7 @@ function getOrCreateRoom(roomId) {
   if (!rooms.has(roomId)) {
     rooms.set(roomId, {
       clients: new Set(),
+      blockedIds: new Set(),
       queue: [],
       chatHistory: [],
       state: {
@@ -73,12 +74,22 @@ wss.on('connection', (ws, req) => {
   const roomId = (url.searchParams.get('room') || 'YTM-8429').toUpperCase().replace(/[^A-Z0-9-]/g, '').slice(0, 20) || 'YTM-8429';
   const room = getOrCreateRoom(roomId);
 
+  const clientKey = (url.searchParams.get('cid') || '').slice(0, 32);
+  if (clientKey && room.blockedIds.has(clientKey)) {
+    ws.send(JSON.stringify({ type: 'BLOCKED' }));
+    ws.close();
+    return;
+  }
   if (room.state.locked && room.clients.size >= 2) {
     ws.send(JSON.stringify({ type: 'ROOM_LOCKED' }));
     ws.close();
     return;
   }
 
+  ws.peerId = Math.random().toString(36).slice(2, 10);
+  ws.clientKey = clientKey || ws.peerId;
+  ws.peerName = url.searchParams.get('name') || 'Listener';
+  ws.peerRole = url.searchParams.get('role') || 'guest';
   room.clients.add(ws);
 
   ws.send(JSON.stringify({
@@ -90,8 +101,6 @@ wss.on('connection', (ws, req) => {
   if (room.chatHistory.length) {
     ws.send(JSON.stringify({ type: 'CHAT_HISTORY', messages: room.chatHistory }));
   }
-  ws.peerName = url.searchParams.get('name') || 'Listener';
-  ws.peerRole = url.searchParams.get('role') || 'guest';
   broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
 
   ws.on('message', (raw) => {
@@ -112,8 +121,8 @@ wss.on('connection', (ws, req) => {
           payload: room.state
         }, ws);
       } else if (data.type === 'ADD_TO_QUEUE' && data.track && data.track.videoId) {
-        const last = room.queue[room.queue.length - 1];
-        if (!last || last.videoId !== data.track.videoId) {
+        const exists = room.queue.some((q) => q.videoId === data.track.videoId);
+        if (!exists && room.state.videoId !== data.track.videoId) {
           room.queue.push(data.track);
         }
         broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
@@ -132,6 +141,18 @@ wss.on('connection', (ws, req) => {
         broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
       } else if (data.type === 'PING') {
         ws.send(JSON.stringify({ type: 'PONG', ts: data.ts, serverNow: Date.now() }));
+      } else if (data.type === 'BLOCK_PEER' && data.peerId && ws.peerRole === 'host') {
+        for (const c of room.clients) {
+          if (c.peerId === data.peerId && c !== ws) {
+            room.blockedIds.add(c.clientKey);
+            if (c.readyState === 1) c.send(JSON.stringify({ type: 'BLOCKED' }));
+            c.close();
+            room.clients.delete(c);
+          }
+        }
+        broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
+      } else if (data.type === 'UNBLOCK_ALL' && ws.peerRole === 'host') {
+        room.blockedIds.clear();
       } else if (data.type === 'HELLO') {
         if (data.name) ws.peerName = String(data.name).slice(0, 24);
         if (data.role) ws.peerRole = data.role === 'host' ? 'host' : 'guest';
