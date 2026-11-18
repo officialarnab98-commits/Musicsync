@@ -1,0 +1,13 @@
+{
+  "name": "musicsync-app",
+  "version": "1.0.0",
+  "description": "YouTube Music listen-together web app with Google OAuth, YouTube Data API v3, and WebSocket drift-sync.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}

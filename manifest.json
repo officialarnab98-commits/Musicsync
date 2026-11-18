@@ -1,0 +1,8 @@
+{
+  "name": "MusicSync — YouTube Music Together",
+  "short_name": "MusicSync",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#030303",
+  "theme_color": "#ff0033"
+}
