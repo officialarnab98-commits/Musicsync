@@ -1715,9 +1715,9 @@
       }
 
       const expected = getExpectedTime();
-      const signedDrift = expected - cur; // positive = guest is behind host
+      const signedDrift = expected - cur;
       const absDrift = Math.abs(signedDrift);
-      el('driftLabel').textContent = `${absDrift.toFixed(2)}s`;
+      el('driftLabel').textContent = state.role === 'host' ? '0.00s (Host)' : `${absDrift.toFixed(2)}s`;
 
       if (state.player && state.player.getPlayerState && state.room.status === 'playing') {
         const pState = state.player.getPlayerState();
@@ -1737,11 +1737,18 @@
         }
       }
       if (state.role === 'guest' && state.guestUnlocked && state.room.status === 'playing') {
+        const pState = state.player.getPlayerState ? state.player.getPlayerState() : -1;
         const nowMs = Date.now();
-        const cooldownOk = !state._lastSeekAt || (nowMs - state._lastSeekAt > 1800);
-        if (absDrift > 0.35 && cooldownOk) {
+        const cooldownOk = !state._lastSeekAt || (nowMs - state._lastSeekAt > 1500);
+        if (pState !== 1 && pState !== 3 && cooldownOk) {
           state._lastSeekAt = nowMs;
-          state.player.seekTo(expected, true);
+          try {
+            state.player.seekTo(expected, true);
+            state.player.playVideo();
+          } catch (_) {}
+        } else if (absDrift > 0.35 && cooldownOk) {
+          state._lastSeekAt = nowMs;
+          try { state.player.seekTo(expected, true); } catch (_) {}
         }
       }
     }, 500);
@@ -1840,7 +1847,15 @@
     });
 
     el('forceResyncBtn').addEventListener('click', () => {
-      if (state.player && state.player.seekTo) state.player.seekTo(getExpectedTime(), true);
+      if (!state.player) return;
+      state.guestUnlocked = true;
+      updateRoleUI();
+      const exp = getExpectedTime();
+      try {
+        if (state.player.unMute) state.player.unMute();
+        state.player.seekTo(exp, true);
+        if (state.room.status === 'playing') state.player.playVideo();
+      } catch (_) {}
       showToast('Re-synced to host');
     });
 
