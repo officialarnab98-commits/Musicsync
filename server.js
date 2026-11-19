@@ -116,6 +116,7 @@ wss.on('connection', (ws, req) => {
     serverNow: Date.now(),
     payload: room.state
   }));
+  ws.send(JSON.stringify({ type: 'YOUR_PEER_ID', peerId: ws.peerId }));
   ws.send(JSON.stringify({ type: 'ROLE_ASSIGNED', role: ws.peerRole }));
   ws.send(JSON.stringify({ type: 'QUEUE_UPDATE', queue: room.queue }));
   if (room.chatHistory.length) {
@@ -159,6 +160,12 @@ wss.on('connection', (ws, req) => {
       } else if (data.type === 'REMOVE_QUEUE' && typeof data.index === 'number') {
         room.queue.splice(data.index, 1);
         broadcast(room, { type: 'QUEUE_UPDATE', queue: room.queue });
+      } else if ((data.type === 'RTC_OFFER' || data.type === 'RTC_ANSWER' || data.type === 'RTC_ICE') && data.targetPeerId) {
+        for (const c of room.clients) {
+          if (c.peerId === data.targetPeerId && c.readyState === 1) {
+            c.send(JSON.stringify({ ...data, fromPeerId: ws.peerId }));
+          }
+        }
       } else if (data.type === 'PING') {
         ws.send(JSON.stringify({ type: 'PONG', ts: data.ts, serverNow: Date.now() }));
       } else if (data.type === 'BLOCK_PEER' && data.peerId && ws.peerRole === 'host') {

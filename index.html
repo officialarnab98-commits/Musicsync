@@ -538,6 +538,8 @@
     <div id="toast" class="pointer-events-none fixed bottom-24 right-5 z-50 translate-y-4 opacity-0 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-xl transition-all duration-200"></div>
 
   <script>
+    const DEFAULT_CLIENT_ID = '49123182233-6esn2e421q8i30hl9n56gj0sphoqi1ct.apps.googleusercontent.com';
+
     const DEFAULT_TRACKS = [
       { videoId: 'n61ULEU7CO0', title: 'Best of Lofi & Chill Beats', artist: 'Lofi Girl', duration: 240, thumb: 'https://i.ytimg.com/vi/n61ULEU7CO0/mqdefault.jpg' },
       { videoId: '7NOSDKb0HlU', title: 'Chillhop Study Beats', artist: 'Chillhop', duration: 205, thumb: 'https://i.ytimg.com/vi/7NOSDKb0HlU/mqdefault.jpg' },
@@ -588,7 +590,9 @@
       driftThreshold: 1.0,
       targetVolume: 100,
       btOffsetMs: 0,
-      autoQueueRelated: true
+      autoQueueRelated: true,
+      myPeerId: null,
+      rtcPeers: new Map()
     };
 
     const el = (id) => document.getElementById(id);
@@ -669,6 +673,7 @@
       state.ws = ws;
 
       ws.onopen = () => {
+        ws.send(JSON.stringify({ type: 'PING', ts: Date.now() }));
         el('wsDot').className = 'h-2 w-2 rounded-full bg-emerald-400';
         if (el('miniSyncDot')) el('miniSyncDot').className = 'inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0';
         el('syncStatusBadge').textContent = 'Live Sync';
@@ -677,7 +682,15 @@
 
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
-        if (msg.type === 'ROLE_ASSIGNED' && msg.role) {
+        if (msg.type === 'YOUR_PEER_ID' && msg.peerId) {
+          state.myPeerId = msg.peerId;
+        } else if (msg.type === 'RTC_OFFER' && msg.fromPeerId) {
+          handleRtcOffer(msg.fromPeerId, msg.sdp);
+        } else if (msg.type === 'RTC_ANSWER' && msg.fromPeerId) {
+          handleRtcAnswer(msg.fromPeerId, msg.sdp);
+        } else if (msg.type === 'RTC_ICE' && msg.fromPeerId && msg.candidate) {
+          handleRtcIce(msg.fromPeerId, msg.candidate);
+        } else if (msg.type === 'ROLE_ASSIGNED' && msg.role) {
           state.role = msg.role;
           if (msg.role === 'host') state.guestUnlocked = true;
           updateRoleUI();
@@ -700,9 +713,15 @@
         } else if (msg.type === 'PONG' && msg.ts) {
           const rtt = Math.max(1, Date.now() - msg.ts);
           el('pingLabel').textContent = `${rtt}ms`;
+          if (msg.serverNow) {
+            state.serverOffsetMs = (msg.serverNow + rtt / 2) - Date.now();
+          }
         } else if (msg.type === 'PEER_COUNT') {
           el('peerCountBadge').textContent = msg.count;
-          if (Array.isArray(msg.peers)) renderPeersList(msg.peers);
+          if (Array.isArray(msg.peers)) {
+            renderPeersList(msg.peers);
+            if (state.role === 'host') syncRtcConnections(msg.peers);
+          }
         } else if (msg.type === 'ROOM_STATE') {
           if (msg.serverNow) state.serverOffsetMs = msg.serverNow - Date.now();
           applyRoomState(msg.payload);
@@ -734,9 +753,114 @@
       return state.role === 'host' || !!state.room.coDj;
     }
 
+    // --- WebRTC Peer-to-Peer DataChannel Sync (with WebSocket fallback) ---
+    function setupDataChannel(peerId, dc) {
+      const entry = state.rtcPeers.get(peerId) || {};
+      entry.dc = dc;
+      state.rtcPeers.set(peerId, entry);
+
+      dc.onopen = () => {
+        el('syncStatusBadge').textContent = 'P2P Direct';
+        el('syncStatusBadge').className = 'rounded-full bg-emerald-500/20 px-2.5 py-1 text-[11px] font-medium text-emerald-300 border border-emerald-500/30';
+        try { dc.send(JSON.stringify({ type: 'P2P_PING', ts: Date.now() })); } catch (_) {}
+      };
+      dc.onclose = () => {
+        if (state.ws && state.ws.readyState === 1) {
+          el('syncStatusBadge').textContent = 'Live Sync';
+        }
+      };
+      dc.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          if (msg.type === 'P2P_ROOM_STATE' && msg.payload) {
+            applyRoomState(msg.payload);
+          } else if (msg.type === 'P2P_PING' && msg.ts) {
+            dc.send(JSON.stringify({ type: 'P2P_PONG', ts: msg.ts }));
+          } else if (msg.type === 'P2P_PONG' && msg.ts) {
+            const rtt = Math.max(1, Date.now() - msg.ts);
+            el('pingLabel').textContent = `${rtt}ms (P2P)`;
+          }
+        } catch (_) {}
+      };
+    }
+
+    function createPeerConnection(peerId) {
+      if (!window.RTCPeerConnection) return null;
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pc.onicecandidate = (e) => {
+        if (e.candidate && state.ws && state.ws.readyState === 1) {
+          state.ws.send(JSON.stringify({ type: 'RTC_ICE', targetPeerId: peerId, candidate: e.candidate }));
+        }
+      };
+      pc.ondatachannel = (e) => setupDataChannel(peerId, e.channel);
+      state.rtcPeers.set(peerId, { pc, dc: null });
+      return pc;
+    }
+
+    async function syncRtcConnections(peers) {
+      if (!window.RTCPeerConnection || !state.myPeerId) return;
+      const activeIds = new Set(peers.map((p) => p.peerId));
+      for (const [pid, entry] of state.rtcPeers.entries()) {
+        if (!activeIds.has(pid)) {
+          try { entry.pc && entry.pc.close(); } catch (_) {}
+          state.rtcPeers.delete(pid);
+        }
+      }
+      for (const p of peers) {
+        if (!p.peerId || p.peerId === state.myPeerId || state.rtcPeers.has(p.peerId)) continue;
+        try {
+          const pc = createPeerConnection(p.peerId);
+          const dc = pc.createDataChannel('sync', { ordered: false, maxRetransmits: 0 });
+          setupDataChannel(p.peerId, dc);
+          const offer = await pc.createOffer();
+          await pc.setLocalDescription(offer);
+          if (state.ws && state.ws.readyState === 1) {
+            state.ws.send(JSON.stringify({ type: 'RTC_OFFER', targetPeerId: p.peerId, sdp: offer }));
+          }
+        } catch (_) {}
+      }
+    }
+
+    async function handleRtcOffer(fromPeerId, sdp) {
+      try {
+        let entry = state.rtcPeers.get(fromPeerId);
+        const pc = (entry && entry.pc) || createPeerConnection(fromPeerId);
+        if (!pc) return;
+        await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        if (state.ws && state.ws.readyState === 1) {
+          state.ws.send(JSON.stringify({ type: 'RTC_ANSWER', targetPeerId: fromPeerId, sdp: answer }));
+        }
+      } catch (_) {}
+    }
+
+    async function handleRtcAnswer(fromPeerId, sdp) {
+      try {
+        const entry = state.rtcPeers.get(fromPeerId);
+        if (entry && entry.pc) await entry.pc.setRemoteDescription(new RTCSessionDescription(sdp));
+      } catch (_) {}
+    }
+
+    async function handleRtcIce(fromPeerId, candidate) {
+      try {
+        const entry = state.rtcPeers.get(fromPeerId);
+        if (entry && entry.pc) await entry.pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (_) {}
+    }
+
     function sendRoomUpdate() {
-      if (!canControl() || !state.ws || state.ws.readyState !== 1) return;
-      state.ws.send(JSON.stringify({ type: 'UPDATE_STATE', payload: state.room }));
+      if (!canControl()) return;
+      // 1. Send directly over open WebRTC P2P DataChannels for lowest latency
+      for (const entry of state.rtcPeers.values()) {
+        if (entry.dc && entry.dc.readyState === 'open') {
+          try { entry.dc.send(JSON.stringify({ type: 'P2P_ROOM_STATE', payload: state.room })); } catch (_) {}
+        }
+      }
+      // 2. Also update server over WebSocket as fallback & for late joiners
+      if (state.ws && state.ws.readyState === 1) {
+        state.ws.send(JSON.stringify({ type: 'UPDATE_STATE', payload: state.room }));
+      }
     }
 
     function getExpectedTime() {
@@ -822,9 +946,11 @@
       } else {
         const pState = state.player.getPlayerState ? state.player.getPlayerState() : -1;
         if (payload.status === 'playing' && pState !== 1) state.player.playVideo();
-        else if (payload.status === 'paused' && pState === 1) state.player.pauseVideo();
+        else if (payload.status === 'paused' && pState !== 2 && pState !== 5) {
+          try { state.player.pauseVideo(); } catch (_) {}
+        }
         const cur = state.player.getCurrentTime ? state.player.getCurrentTime() : expected;
-        if (Math.abs(cur - expected) > state.driftThreshold) {
+        if (Math.abs(cur - expected) > 0.35) {
           state.player.seekTo(expected, true);
         }
       }
@@ -852,6 +978,10 @@
             if (e.data === 5 && state.room.status === 'playing') {
               try { state.player.playVideo(); } catch (_) {}
             }
+            if (e.data === 1 && state.role === 'guest' && state.room.status === 'paused') {
+              try { state.player.pauseVideo(); } catch (_) {}
+              return;
+            }
             if (e.data === 1 && state._guestSnapOnPlay && state.role === 'guest') {
               state._guestSnapOnPlay = false;
               const exp = getExpectedTime();
@@ -863,6 +993,7 @@
             if (canControl()) {
               const justLoaded = state._justLoadedAt && (Date.now() - state._justLoadedAt < 1800);
               if (e.data === 1 || (e.data === 2 && !justLoaded)) {
+                if (e.data === 1) state._justLoadedAt = 0;
                 state.room.status = e.data === 1 ? 'playing' : 'paused';
                 state.room.positionSeconds = state.player.getCurrentTime();
                 state.room.updatedAt = Date.now() + state.serverOffsetMs;
@@ -883,7 +1014,7 @@
 
     // --- Google OAuth + YouTube Data API v3 ---
     function startGoogleLogin() {
-      const clientId = el('oauthClientIdInput').value.trim();
+      const clientId = el('oauthClientIdInput').value.trim() || DEFAULT_CLIENT_ID;
       if (!clientId) return showToast('Enter your Google OAuth Client ID');
       try { localStorage.setItem('musicsync_client_id', clientId); } catch (_) {}
 
@@ -1600,14 +1731,17 @@
           state._bufTicks = 0;
         }
       }
+      if (state.role === 'guest' && state.guestUnlocked && state.room.status === 'paused' && state.player.getPlayerState) {
+        if (state.player.getPlayerState() === 1) {
+          try { state.player.pauseVideo(); } catch (_) {}
+        }
+      }
       if (state.role === 'guest' && state.guestUnlocked && state.room.status === 'playing') {
-        if (absDrift > 0.9) {
-          if (state.player.setPlaybackRate) state.player.setPlaybackRate(1.0);
+        const nowMs = Date.now();
+        const cooldownOk = !state._lastSeekAt || (nowMs - state._lastSeekAt > 1800);
+        if (absDrift > 0.35 && cooldownOk) {
+          state._lastSeekAt = nowMs;
           state.player.seekTo(expected, true);
-        } else if (absDrift > 0.2 && state.player.setPlaybackRate) {
-          state.player.setPlaybackRate(signedDrift > 0 ? 1.1 : 0.9);
-        } else if (state.player.setPlaybackRate) {
-          state.player.setPlaybackRate(1.0);
         }
       }
     }, 500);
@@ -1797,8 +1931,8 @@
 
     // Restore persisted session on app launch
     try {
-      const savedId = localStorage.getItem('musicsync_client_id');
-      if (savedId) el('oauthClientIdInput').value = savedId;
+      const savedId = localStorage.getItem('musicsync_client_id') || DEFAULT_CLIENT_ID;
+      el('oauthClientIdInput').value = savedId;
 
       const savedToken = localStorage.getItem('musicsync_token');
       const savedExp = Number(localStorage.getItem('musicsync_token_exp') || 0);
