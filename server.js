@@ -38,6 +38,7 @@ function getOrCreateRoom(roomId) {
     rooms.set(roomId, {
       clients: new Set(),
       blockedIds: new Set(),
+      hostClientKey: null,
       queue: [],
       chatHistory: [],
       state: {
@@ -89,7 +90,13 @@ wss.on('connection', (ws, req) => {
   ws.peerId = Math.random().toString(36).slice(2, 10);
   ws.clientKey = clientKey || ws.peerId;
   ws.peerName = url.searchParams.get('name') || 'Listener';
-  ws.peerRole = url.searchParams.get('role') || 'guest';
+  const requestedRole = url.searchParams.get('role') === 'host' ? 'host' : 'guest';
+  if (!room.hostClientKey && requestedRole === 'host') {
+    room.hostClientKey = ws.clientKey;
+  } else if (!room.hostClientKey && room.clients.size === 0) {
+    room.hostClientKey = ws.clientKey;
+  }
+  ws.peerRole = (room.hostClientKey === ws.clientKey) ? 'host' : 'guest';
   ws.isAlive = true;
   ws.on('pong', () => { ws.isAlive = true; });
 
@@ -109,6 +116,7 @@ wss.on('connection', (ws, req) => {
     serverNow: Date.now(),
     payload: room.state
   }));
+  ws.send(JSON.stringify({ type: 'ROLE_ASSIGNED', role: ws.peerRole }));
   ws.send(JSON.stringify({ type: 'QUEUE_UPDATE', queue: room.queue }));
   if (room.chatHistory.length) {
     ws.send(JSON.stringify({ type: 'CHAT_HISTORY', messages: room.chatHistory }));
@@ -165,9 +173,34 @@ wss.on('connection', (ws, req) => {
         broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
       } else if (data.type === 'UNBLOCK_ALL' && ws.peerRole === 'host') {
         room.blockedIds.clear();
+      } else if (data.type === 'REQUEST_HOST') {
+        for (const c of room.clients) {
+          if (c.peerRole === 'host' && c.readyState === 1) {
+            c.send(JSON.stringify({ type: 'HOST_REQUEST', peerId: ws.peerId, name: ws.peerName }));
+          }
+        }
+      } else if (data.type === 'APPROVE_HOST' && data.peerId && ws.peerRole === 'host') {
+        let target = null;
+        for (const c of room.clients) {
+          if (c.peerId === data.peerId) target = c;
+        }
+        if (target) {
+          room.hostClientKey = target.clientKey;
+          for (const c of room.clients) {
+            c.peerRole = (c === target) ? 'host' : 'guest';
+            if (c.readyState === 1) c.send(JSON.stringify({ type: 'ROLE_ASSIGNED', role: c.peerRole }));
+          }
+          broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
+        }
+      } else if (data.type === 'DENY_HOST' && data.peerId && ws.peerRole === 'host') {
+        for (const c of room.clients) {
+          if (c.peerId === data.peerId && c.readyState === 1) {
+            c.send(JSON.stringify({ type: 'HOST_DENIED' }));
+          }
+        }
       } else if (data.type === 'HELLO') {
         if (data.name) ws.peerName = String(data.name).slice(0, 24);
-        if (data.role) ws.peerRole = data.role === 'host' ? 'host' : 'guest';
+        ws.peerRole = (room.hostClientKey === ws.clientKey) ? 'host' : 'guest';
         broadcast(room, { type: 'PEER_COUNT', count: room.clients.size, peers: getPeersList(room) });
       } else if (data.type === 'CHAT_MSG' && data.text) {
         const chatItem = { sender: data.sender || 'User', text: String(data.text).slice(0, 200), ts: Date.now() };
